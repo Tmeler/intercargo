@@ -9,8 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  camera: ^0.10.5+9
+  camera: ^0.11.1
   email_launcher: ^1.1.1
+
+
+  flutter_barcode_scanner: ^2.0.0
+  qr_flutter: ^4.1.0
+  qr_code_scanner: ^1.0.1
 
 dev_dependencies:
   flutter_test:

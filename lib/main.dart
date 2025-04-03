@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:email_launcher/email_launcher.dart';
+import 'scanner_pag.dart';
 
 void main() {
   runApp(MyApp());
@@ -11,9 +12,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Scanner Notas de Devolução',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData(primarySwatch: Colors.blue),
       home: HomeScreen(),
     );
   }
@@ -27,7 +26,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   TextEditingController _controller = TextEditingController();
   List<String> _lastSentItems = [];
-  String scannedData = "";
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Image.asset('assets/images/intercargo-transportes.png', width: 50), // Caminho correto da logo
+            Image.asset('assets/images/intercargo-transportes.png', width: 50),
             SizedBox(width: 10),
             Text('Scanner Notas de Devolução'),
           ],
@@ -53,9 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 TextField(
                   controller: _controller,
                   maxLength: 44,
-                  decoration: InputDecoration(
-                    hintText: 'Digite aqui',
-                  ),
+                  decoration: InputDecoration(hintText: 'Digite aqui'),
                 ),
                 SizedBox(height: 20),
                 ElevatedButton(
@@ -75,14 +71,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 _lastSentItems.isEmpty
                     ? Text('Nenhum envio realizado ainda.')
                     : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _lastSentItems.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_lastSentItems[index]),
-                    );
-                  },
-                ),
+                      shrinkWrap: true,
+                      itemCount: _lastSentItems.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(title: Text(_lastSentItems[index]));
+                      },
+                    ),
               ],
             ),
           ),
@@ -114,22 +108,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _scanNFE() async {
-    final cameras = await availableCameras();
-    final firstCamera = cameras.first;
-
-    Navigator.push(
+    String? scannedCode = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => TakePictureScreen(camera: firstCamera),
-      ),
+      MaterialPageRoute(builder: (context) => QRCodePage()),
     );
+
+    if (scannedCode != null) {
+      setState(() {
+        _controller.text = scannedCode;
+      });
+    }
   }
 
   Future<void> _sendEmail(String scannedText) async {
     final email = Email(
       body: scannedText,
       subject: 'Nota Fiscal de Devolução',
-      to: ['nfedevolucao@teste.com.br'], // Corrigido o nome do parâmetro
+      to: ['nfedevolucao@teste.com.br'],
     );
 
     await EmailLauncher.launch(email);
@@ -185,9 +180,19 @@ class _TakePictureScreenState extends State<TakePictureScreen> {
             await _initializeControllerFuture;
             final image = await _controller.takePicture();
             print('Imagem capturada: ${image.path}');
-            // Implemente a leitura da NFE aqui
+
+            // Chama o scanner de código de barras
+            String? scannedCode = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => QRCodePage()),
+            );
+
+            if (scannedCode != null) {
+              print("Código escaneado: $scannedCode");
+              Navigator.pop(context, scannedCode);
+            }
           } catch (e) {
-            print(e);
+            print("Erro ao capturar imagem ou escanear QR Code: $e");
           }
         },
         child: Icon(Icons.camera_alt),
