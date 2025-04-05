@@ -1,25 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:email_launcher/email_launcher.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'scanner_pag.dart';
 
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final cameras = await availableCameras();
+  runApp(MyApp(cameras: cameras));
 }
 
 class MyApp extends StatelessWidget {
+  final List<CameraDescription> cameras;
+
+  const MyApp({Key? key, required this.cameras}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Scanner Notas de Devolução',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: HomeScreen(),
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: HomeScreen(cameras: cameras),
     );
   }
 }
 
 class HomeScreen extends StatefulWidget {
+  final List<CameraDescription> cameras;
+
+  const HomeScreen({Key? key, required this.cameras}) : super(key: key);
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -27,7 +36,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   TextEditingController _controller = TextEditingController();
   List<String> _lastSentItems = [];
-  String scannedData = "";
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Image.asset('assets/images/intercargo-transportes.png', width: 50), // Caminho correto da logo
+            Image.asset('assets/images/intercargo-transportes.png', width: 50),
             SizedBox(width: 10),
             Text('Scanner Notas de Devolução'),
           ],
@@ -53,9 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 TextField(
                   controller: _controller,
                   maxLength: 44,
-                  decoration: InputDecoration(
-                    hintText: 'Digite aqui',
-                  ),
+                  decoration: InputDecoration(hintText: 'Digite aqui'),
                 ),
                 SizedBox(height: 20),
                 ElevatedButton(
@@ -67,22 +73,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: _scanNFE,
-                  child: Text('Escanear Nota Fiscal'),
+                  onPressed: _scanBarcode,
+                  child: Text('Escanear Código de Barras'),
                 ),
                 SizedBox(height: 20),
                 Text('Últimos Envios:'),
                 _lastSentItems.isEmpty
                     ? Text('Nenhum envio realizado ainda.')
                     : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _lastSentItems.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_lastSentItems[index]),
-                    );
-                  },
-                ),
+                        shrinkWrap: true,
+                        itemCount: _lastSentItems.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(title: Text(_lastSentItems[index]));
+                        },
+                      ),
               ],
             ),
           ),
@@ -97,7 +101,9 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  MaterialPageRoute(
+                      builder: (context) =>
+                          HomeScreen(cameras: widget.cameras)),
                 );
               },
             ),
@@ -113,36 +119,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _scanNFE() async {
-    final cameras = await availableCameras();
-    final firstCamera = cameras.first;
-
-    Navigator.push(
+  Future<void> _scanBarcode() async {
+    String? barcode = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => TakePictureScreen(camera: firstCamera),
-      ),
+      MaterialPageRoute(builder: (context) => BarcodePage()),
     );
+
+    if (barcode != null) {
+      setState(() {
+        _controller.text = barcode;
+      });
+    }
   }
 
   Future<void> _sendEmail(String scannedText) async {
-    final email = Email(
-      body: scannedText,
-      subject: 'Nota Fiscal de Devolução',
-      to: ['nfedevolucao@teste.com.br'], // Corrigido o nome do parâmetro
+    final emailUri = Uri(
+      scheme: 'mailto',
+      path: 'nfedevolucao@teste.com.br',
+      query:
+          'subject=Nota Fiscal de Devolução&body=${Uri.encodeComponent(scannedText)}',
     );
 
-    await EmailLauncher.launch(email);
-    setState(() {
-      _lastSentItems.add(scannedText);
-    });
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+      setState(() {
+        _lastSentItems.add(scannedText);
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível abrir o aplicativo de email')),
+      );
+    }
   }
 }
 
 class TakePictureScreen extends StatefulWidget {
   final CameraDescription camera;
 
-  TakePictureScreen({required this.camera});
+  const TakePictureScreen({required this.camera});
 
   @override
   _TakePictureScreenState createState() => _TakePictureScreenState();
@@ -185,9 +199,21 @@ class _TakePictureScreenState extends State<TakePictureScreen> {
             await _initializeControllerFuture;
             final image = await _controller.takePicture();
             print('Imagem capturada: ${image.path}');
-            // Implemente a leitura da NFE aqui
+
+            String? barcode = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => BarcodePage()),
+            );
+
+            if (barcode != null) {
+              print("Código escaneado: $barcode");
+              Navigator.pop(context, barcode);
+            }
           } catch (e) {
-            print(e);
+            print("Erro ao capturar imagem ou escanear código: $e");
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Erro: $e')),
+            );
           }
         },
         child: Icon(Icons.camera_alt),
