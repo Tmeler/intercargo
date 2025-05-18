@@ -1,6 +1,6 @@
 {
-    "name": "intercargo",
-    "short_name": "intercargo",
+    "name": "novo_projeto",
+    "short_name": "novo_projeto",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

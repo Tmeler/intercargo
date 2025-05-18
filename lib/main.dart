@@ -1,196 +1,226 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:email_launcher/email_launcher.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'scanner_pag.dart';
+import 'minhas_notas.dart';
+import 'package:intercargo/invoice_note.dart';
 
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final cameras = await availableCameras();
+  runApp(MyApp(cameras: cameras));
 }
 
 class MyApp extends StatelessWidget {
+  final List<CameraDescription> cameras;
+  const MyApp({Key? key, required this.cameras}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Scanner Notas de Devolução',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
       ),
-      home: HomeScreen(),
+      home: HomeScreen(cameras: cameras),
     );
   }
 }
 
 class HomeScreen extends StatefulWidget {
+  final List<CameraDescription> cameras;
+  const HomeScreen({Key? key, required this.cameras}) : super(key: key);
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   TextEditingController _controller = TextEditingController();
-  List<String> _lastSentItems = [];
-  String scannedData = "";
+  List<InvoiceNote> _lastNotes = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
         title: Row(
           children: [
-            Image.asset('assets/images/intercargo-transportes.png', width: 50), // Caminho correto da logo
+            CircleAvatar(
+              backgroundColor: Colors.grey[200],
+              radius: 20,
+              child: Icon(Icons.local_shipping, color: Colors.black54),
+            ),
             SizedBox(width: 10),
-            Text('Scanner Notas de Devolução'),
-          ],
-        ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Digite os 44 caracteres:'),
-                TextField(
-                  controller: _controller,
-                  maxLength: 44,
-                  decoration: InputDecoration(
-                    hintText: 'Digite aqui',
-                  ),
-                ),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    String textToSend = _controller.text;
-                    _sendEmail(textToSend);
-                  },
-                  child: Text('Enviar'),
-                ),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _scanNFE,
-                  child: Text('Escanear Nota Fiscal'),
-                ),
-                SizedBox(height: 20),
-                Text('Últimos Envios:'),
-                _lastSentItems.isEmpty
-                    ? Text('Nenhum envio realizado ainda.')
-                    : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _lastSentItems.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_lastSentItems[index]),
-                    );
-                  },
-                ),
+                Text('Intercargo Transportes',
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
+                Text('NF Intercargo',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            IconButton(
-              icon: Icon(Icons.home),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => HomeScreen()),
-                );
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.arrow_back),
-              onPressed: () {
-                Navigator.pop(context);
-              },
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Future<void> _scanNFE() async {
-    final cameras = await availableCameras();
-    final firstCamera = cameras.first;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TakePictureScreen(camera: firstCamera),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Digite o número da nota fiscal',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              SizedBox(height: 8),
+              TextField(
+                controller: _controller,
+                maxLength: 44,
+                decoration: InputDecoration(
+                  hintText: 'Insira o número aqui',
+                  counterText: '',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              SizedBox(height: 4),
+              Text('Exemplo: 123456789',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              SizedBox(height: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  minimumSize: Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: _scanBarcode,
+                child: Text('Escanear Nota',
+                    style: TextStyle(fontSize: 16, color: Colors.white)),
+              ),
+              SizedBox(height: 24),
+              Text('Últimas Notas',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 12),
+              Container(
+                height: 220,
+                child: _lastNotes.isEmpty
+                    ? Center(child: Text('Nenhuma nota ainda.'))
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _lastNotes.length,
+                        separatorBuilder: (_, __) => SizedBox(width: 12),
+                        itemBuilder: (context, i) {
+                          final note = _lastNotes[i];
+                          return _InvoiceCard(
+                            valor: note.valor,
+                            produto: note.produto,
+                            data: note.dataEmissao,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        onTap: (idx) {
+          if (idx == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MinhasNotasPage(notinhas: _lastNotes),
+              ),
+            );
+          }
+        },
+        items: [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined), label: 'Início'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long), label: 'Minhas Notas'),
+        ],
       ),
     );
   }
 
-  Future<void> _sendEmail(String scannedText) async {
-    final email = Email(
-      body: scannedText,
-      subject: 'Nota Fiscal de Devolução',
-      to: ['nfedevolucao@teste.com.br'], // Corrigido o nome do parâmetro
+  Future<void> _scanBarcode() async {
+    String? barcode = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => BarcodePage()),
     );
-
-    await EmailLauncher.launch(email);
-    setState(() {
-      _lastSentItems.add(scannedText);
-    });
+    if (barcode != null && barcode.isNotEmpty) {
+      _controller.text = barcode;
+      final now = DateTime.now();
+      final formatted = '${now.day.toString().padLeft(2, '0')}/'
+          '${now.month.toString().padLeft(2, '0')}/'
+          '${now.year}';
+      setState(() {
+        _lastNotes.insert(
+          0,
+          InvoiceNote(
+            valor: 'R\$ 0.00',
+            produto: barcode,
+            dataEmissao: formatted,
+          ),
+        );
+      });
+    }
   }
 }
 
-class TakePictureScreen extends StatefulWidget {
-  final CameraDescription camera;
-
-  TakePictureScreen({required this.camera});
-
-  @override
-  _TakePictureScreenState createState() => _TakePictureScreenState();
-}
-
-class _TakePictureScreenState extends State<TakePictureScreen> {
-  late CameraController _controller;
-  late Future<void> _initializeControllerFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = CameraController(widget.camera, ResolutionPreset.high);
-    _initializeControllerFuture = _controller.initialize();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+class _InvoiceCard extends StatelessWidget {
+  final String valor;
+  final String produto;
+  final String data;
+  const _InvoiceCard({
+    required this.valor,
+    required this.produto,
+    required this.data,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Capturar Nota Fiscal')),
-      body: FutureBuilder<void>(
-        future: _initializeControllerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            return CameraPreview(_controller);
-          } else {
-            return Center(child: CircularProgressIndicator());
-          }
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          try {
-            await _initializeControllerFuture;
-            final image = await _controller.takePicture();
-            print('Imagem capturada: ${image.path}');
-            // Implemente a leitura da NFE aqui
-          } catch (e) {
-            print(e);
-          }
-        },
-        child: Icon(Icons.camera_alt),
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      child: Container(
+        width: 160,
+        padding: EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text('Valor: $valor',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+            SizedBox(height: 8),
+            Expanded(
+              child: Center(
+                child: Text('Imagem do Produto\nou referência',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600])),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(produto,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            Text(data,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
