@@ -9,22 +9,28 @@ class BarcodePage extends StatefulWidget {
 }
 
 class _BarcodePageState extends State<BarcodePage> {
-  String barcode = '';
-  bool isLoading = true;
-  final MobileScannerController controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
-    detectionTimeoutMs: 1000,
-    formats: [BarcodeFormat.all], // Foco em códigos de barras
-  );
+  late MobileScannerController controller;
+  bool _isLoading = true;
+  bool _flashEnabled = false;
+  CameraFacing _cameraFacing = CameraFacing.back;
 
   @override
   void initState() {
     super.initState();
-    _startScan();
+    controller = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      formats: [BarcodeFormat.all],
+    );
+    _startScanner();
   }
 
-  Future<void> _startScan() async {
-    controller.start();
+  Future<void> _startScanner() async {
+    try {
+      await controller.start();
+      setState(() => _isLoading = false);
+    } catch (e) {
+      Navigator.pop(context, '');
+    }
   }
 
   @override
@@ -36,58 +42,78 @@ class _BarcodePageState extends State<BarcodePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Escanear Código de Barras")),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: controller,
-            fit: BoxFit.contain,
-            onDetect: (capture) {
-              final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                final Barcode firstBarcode = barcodes.first;
-
-                // Filtra apenas códigos de barras (não QR codes)
-                if (firstBarcode.format != BarcodeFormat.qrCode) {
-                  final String result = firstBarcode.rawValue ?? '';
-                  if (result.isNotEmpty) {
-                    controller.stop();
-                    setState(() {
-                      barcode = result;
-                      isLoading = false;
-                    });
-                    Navigator.pop(context, result);
-                  }
-                }
-              }
+      appBar: AppBar(
+        title: Text("Escanear Código de Barras"),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _flashEnabled ? Icons.flash_on : Icons.flash_off,
+              color: _flashEnabled ? Colors.yellow : Colors.grey,
+            ),
+            onPressed: () {
+              setState(() {
+                _flashEnabled = !_flashEnabled;
+              });
+              controller.toggleTorch();
             },
           ),
-          if (isLoading)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text("Escaneando código de barras..."),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text("Cancelar"),
-                  ),
-                ],
-              ),
+          IconButton(
+            icon: Icon(
+              _cameraFacing == CameraFacing.back
+                  ? Icons.camera_rear
+                  : Icons.camera_front,
             ),
-          // Overlay com guia para código de barras
-          Align(
-            alignment: Alignment.center,
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.8,
-              height: 2,
-              color: Colors.red.withOpacity(0.5),
-            ),
+            onPressed: () {
+              setState(() {
+                _cameraFacing =
+                    _cameraFacing == CameraFacing.back
+                        ? CameraFacing.front
+                        : CameraFacing.back;
+              });
+              controller.switchCamera();
+            },
           ),
         ],
+      ),
+      body: _buildScannerContent(),
+    );
+  }
+
+  Widget _buildScannerContent() {
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    return Stack(
+      children: [
+        MobileScanner(
+          controller: controller,
+          onDetect: (capture) {
+            final barcodes = capture.barcodes;
+            if (barcodes.isNotEmpty) {
+              final barcode = barcodes.first.rawValue;
+              if (barcode != null && barcode.isNotEmpty) {
+                controller.stop();
+                Navigator.pop(context, barcode);
+              }
+            }
+          },
+        ),
+        _buildScannerOverlay(),
+      ],
+    );
+  }
+
+  Widget _buildScannerOverlay() {
+    return Align(
+      alignment: Alignment.center,
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.7,
+        height: MediaQuery.of(context).size.width * 0.7,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.red, width: 2),
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }

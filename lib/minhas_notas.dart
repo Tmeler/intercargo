@@ -96,7 +96,6 @@ class _MinhasNotasPageState extends State<MinhasNotasPage> {
                       final note = widget.notinhas[index];
                       return ListTile(
                         title: Text(note.produto),
-                        subtitle: Text('Valor: ${note.valor}'),
                         trailing: Text(note.dataEmissao),
                       );
                     },
