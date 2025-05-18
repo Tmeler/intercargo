@@ -1,11 +1,11 @@
 class InvoiceNote {
-  final String valor;
   final String produto;
   final String dataEmissao;
+  final String? filePath;
 
   InvoiceNote({
-    required this.valor,
     required this.produto,
     required this.dataEmissao,
+    this.filePath,
   });
 }

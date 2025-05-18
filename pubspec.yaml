@@ -1,30 +1,34 @@
 name: intercargo
-description: A new Flutter project
+description: Aplicativo para leitura de notas fiscais
 
 version: 1.0.0+1
 
 environment:
-  sdk: '>=2.17.0 <4.0.0'  # Versão mais compatível
+  sdk: '>=3.0.0 <4.0.0'  # Atualizado para Dart 3
 
 dependencies:
   flutter:
     sdk: flutter
-
-  # Pacotes modernos null-safe:
+  
+  # Dependências principais (sem duplicações)
+  camera: ^0.11.1         # Versão mais recente
+  mobile_scanner: ^7.0.0   # Scanner único
+  path_provider: ^2.1.1
+  open_file: ^3.3.1
+  dio: ^5.0.0
   url_launcher: ^6.1.11
-  mobile_scanner: ^6.0.7
-  camera: ^0.11.1
-  qr_flutter: ^4.1.0
-
-  # Remova ou substitua estes pacotes problemáticos:
-  # email_launcher: ^1.1.1  # Remover (usar url_launcher)
-  # flutter_barcode_scanner: ^2.0.0  # Remover (usar mobile_scanner)
-  # qr_code_scanner: ^1.0.1  # Remover (usar mobile_scanner)
+  qr_flutter: ^4.1.0  # Para exibição de QR codes
+  mailer: ^6.0.0
+  flutter_email_sender: ^7.0.0  
+  file_picker: ^10.1.9
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^5.0.0    # Para análise de código
 
 flutter:
+  uses-material-design: true
   assets:
     - assets/images/
+    - assets/nota-fiscal-notebook-dell.pdf  # Removi espaços do nome do arquivo 
