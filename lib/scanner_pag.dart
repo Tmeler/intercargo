@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+// importe o permission_handler
+import 'package:permission_handler/permission_handler.dart';
 
 class BarcodePage extends StatefulWidget {
   const BarcodePage({Key? key}) : super(key: key);
@@ -25,10 +27,20 @@ class _BarcodePageState extends State<BarcodePage> {
   }
 
   Future<void> _startScanner() async {
+    // 1) Solicita permissão de câmera
+    final status = await Permission.camera.request();
+    if (!status.isGranted) {
+      // Se o usuário negar, retorna sem código
+      Navigator.pop(context, '');
+      return;
+    }
+
+    // 2) Inicia o scanner
     try {
       await controller.start();
       setState(() => _isLoading = false);
     } catch (e) {
+      // Se falhar por outro motivo, fecha também
       Navigator.pop(context, '');
     }
   }
@@ -51,9 +63,7 @@ class _BarcodePageState extends State<BarcodePage> {
               color: _flashEnabled ? Colors.yellow : Colors.grey,
             ),
             onPressed: () {
-              setState(() {
-                _flashEnabled = !_flashEnabled;
-              });
+              setState(() => _flashEnabled = !_flashEnabled);
               controller.toggleTorch();
             },
           ),
@@ -65,56 +75,45 @@ class _BarcodePageState extends State<BarcodePage> {
             ),
             onPressed: () {
               setState(() {
-                _cameraFacing =
-                    _cameraFacing == CameraFacing.back
-                        ? CameraFacing.front
-                        : CameraFacing.back;
+                _cameraFacing = (_cameraFacing == CameraFacing.back)
+                    ? CameraFacing.front
+                    : CameraFacing.back;
               });
               controller.switchCamera();
             },
           ),
         ],
       ),
-      body: _buildScannerContent(),
-    );
-  }
-
-  Widget _buildScannerContent() {
-    if (_isLoading) {
-      return Center(child: CircularProgressIndicator());
-    }
-
-    return Stack(
-      children: [
-        MobileScanner(
-          controller: controller,
-          onDetect: (capture) {
-            final barcodes = capture.barcodes;
-            if (barcodes.isNotEmpty) {
-              final barcode = barcodes.first.rawValue;
-              if (barcode != null && barcode.isNotEmpty) {
-                controller.stop();
-                Navigator.pop(context, barcode);
-              }
-            }
-          },
-        ),
-        _buildScannerOverlay(),
-      ],
-    );
-  }
-
-  Widget _buildScannerOverlay() {
-    return Align(
-      alignment: Alignment.center,
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.7,
-        height: MediaQuery.of(context).size.width * 0.7,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.red, width: 2),
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Stack(
+              children: [
+                MobileScanner(
+                  controller: controller,
+                  onDetect: (capture) {
+                    final barcodes = capture.barcodes;
+                    if (barcodes.isNotEmpty) {
+                      final code = barcodes.first.rawValue;
+                      if (code != null && code.isNotEmpty) {
+                        controller.stop();
+                        Navigator.pop(context, code);
+                      }
+                    }
+                  },
+                ),
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.7,
+                    height: MediaQuery.of(context).size.width * 0.7,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.red, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
