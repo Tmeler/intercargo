@@ -158,7 +158,6 @@ class _HomeScreenState extends State<HomeScreen> {
           'Atenciosamente,\n'
           'Intercargo Transportes';
 
-      // Priorizar flutter_email_sender que mantém melhor formatação
       try {
         final Email email = Email(
           body: body,
@@ -174,12 +173,11 @@ class _HomeScreenState extends State<HomeScreen> {
         debugPrint('Erro com flutter_email_sender: $e');
       }
 
-      // Fallback para mailto com codificação correta
       final mailtoUri = Uri(
         scheme: 'mailto',
         queryParameters: {
           'subject': subject,
-          'body': body.replaceAll('\n', '%0D%0A'), // Codificação para mailto
+          'body': body.replaceAll('\n', '%0D%0A'),
         },
       );
 
@@ -188,7 +186,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // Fallback para Gmail Web
       try {
         final gmailUri = Uri(
           scheme: 'https',
@@ -199,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'fs': '1',
             'tf': '1',
             'su': subject,
-            'body': body.replaceAll('\n', '%0A'), // Codificação para Gmail
+            'body': body.replaceAll('\n', '%0A'),
             'attach': note.filePath!,
           },
         );
@@ -418,13 +415,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _scanBarcode() async {
-    String? barcode = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => BarcodePage()),
-    );
-    if (barcode != null && barcode.isNotEmpty) {
-      _controller.text = barcode;
-      _copyPdfFromAssets(barcode);
+    try {
+      String? barcode = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (context) => const BarcodePage()),
+      );
+
+      if (barcode != null && barcode.isNotEmpty) {
+        _controller.text = barcode;
+        await _copyPdfFromAssets(barcode);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao escanear código: ${e.toString()}')),
+      );
     }
   }
 }

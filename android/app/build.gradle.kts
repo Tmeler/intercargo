@@ -1,12 +1,11 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    // Forçar uso do NDK 27
     ndkVersion = "27.0.12077973"
 
     namespace = "com.example.novo_projeto"
@@ -22,7 +21,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID
         applicationId = "com.example.novo_projeto"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
@@ -32,7 +30,6 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for release builds
             signingConfig = signingConfigs.getByName("debug")
         }
     }

@@ -15,7 +15,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // Adicione esta linha para definir o NDK no defaultConfig
         ndkVersion = "27.0.12077973"
     }
 
@@ -36,7 +35,6 @@ android {
         jvmTarget = "11"
     }
 
-    // Mantenha também no nível do android como fallback
     ndkVersion = "27.0.12077973"
 }
 
